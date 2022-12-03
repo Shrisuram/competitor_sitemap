@@ -32,7 +32,7 @@ jobs:
         with:
           name: ${{ github.event.repository.name }}
           runtime: python37
-          project_id: api-project-901373404215
+          project_id: "api-project-901373404215"
           credentials: ${{ secrets.API_PROJECT_GCP_CREDENTIALS }}
           event_trigger_type: providers/cloud.pubsub/eventTypes/topic.publish
           event_trigger_resource: projects/api-project-901373404215/topics/${{ github.event.repository.name }}
