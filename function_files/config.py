@@ -1,44 +1,30 @@
-from google.cloud import storage
+# Configuration file for bi_data_alerts
 
-project = "api-project-901373404215"
-storage_client = storage.Client()
-bucket = storage_client.get_bucket(project)
+from google.cloud import bigquery
 
-# Consumer Key
-blob = bucket.blob('salesforce_client_id.txt')
-client_id = blob.download_as_string().decode("utf-8")
-# Consumer Secret
-blob = bucket.blob('salesforce_client_secret.txt')
-client_secret = blob.download_as_string().decode("utf-8")
-# sf_user = your SFDC username
-blob = bucket.blob('salesforce_email.txt')
-sf_user = blob.download_as_string().decode("utf-8")
-# sf_pass = your SFDC password
-blob = bucket.blob("salesforce_password.txt")
-sf_pass = blob.download_as_string().decode("utf-8")
+# Main.py references the following elements:
 
-login_url = "https://login.salesforce.com/services/oauth2/token"
-salesforce_report_url = "https://forbes.my.salesforce.com/services/data/v29.0/analytics/reports"
-grant_type = "password"
-api_version = "4"
-dataset = "Salesforce_leadership"
+# -bucket_name
+# -file_name
+# -scopes
+# -project_id
+# -spreadsheet ids
+# -sheet names
+# -value render options
+# -col names
+# -SQL queries
 
-grouped_reports = [
-    "00O3m000008rT92EAE",
-    "00O3m000008rVW3EAM",
-    "00O3m000008rU5aEAE",
-    "00O3m000008rVS1EAM",
-    "00O3m000008rVPbEAM",
-    "00O3m000008rUViEAM",
-    "00O3m000008rSsaEAE",
-    "00O3m000008rRq4EAE",
-    "00O3m000008rKjuEAE"
-]
+bucket_name = "api-project-901373404215"
+file_name = "credentials.json"
+scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+project_id = "api-project-901373404215"
 
-non_grouped_reports = [
-    "00O3m000008rRauEAE"
-]
+columns = {0: "Site", 1: "URL"}
 
-cross_grouping_reports = [
-    "00O3m000008rVPWEA2"
-]
+competitor_sitemap_id = "1QPjn7YykAv_DhUwmmb6sLphXMuh2LSTxAwvg86yVPkM"
+WSJ_sheet_name = "WSJ"
+
+value_render_option = "UNFORMATTED_VALUE"
+date_time_render_option = "FORMATTED_STRING"
+
+dataset = 'Shri_test'
