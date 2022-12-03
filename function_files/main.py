@@ -1,200 +1,113 @@
+import json
 import logging
-import config as cfg
-import pandas as pd
-import requests
-import re
-from google.cloud import bigquery
-import google.cloud.logging
 
+
+from google.cloud.bigquery.client import Client
+import google.cloud.logging
+import config as cfg
+import google.cloud.logging
+import pandas as pd
+from google.cloud import bigquery, storage
+from google.oauth2 import service_account
+from googleapiclient import discovery
+import advertools as adv
+
+# Setup Logging
+logging.basicConfig(
+    format="%(asctime)s:%(levelname)s-%(lineno)d-%(message)s", level=logging.INFO
+)
 logging_client = google.cloud.logging.Client()
 logging_client.setup_logging()
-logging.basicConfig(format="%(asctime)s:%(levelname)s-%(message)s", level=logging.INFO)
 
-def authenticate_salesforce() -> dict:
-    # Authenticates with Salesforce and returns the authentication response dictionary on success
+# Instantiate BQ Client
+bq_client = bigquery.Client(project=cfg.project_id)
 
-    logging.info("Authenticating with Salesforce")
-    response = requests.post(
-        cfg.login_url,
-        data={
-            "client_id": cfg.client_id,
-            "client_secret": cfg.client_secret,
-            "grant_type": cfg.grant_type,
-            "username": cfg.sf_user,
-            "password": cfg.sf_pass,
-        },
-    )
+# Get credentials from GCS to fetch Google Spreadsheets
+storage_client = storage.Client()
+bucket = storage_client.get_bucket(cfg.bucket_name)
+blob = bucket.blob(cfg.file_name)
 
-    if response.json().get("access_token"):
-        logging.info("Authentication with Salesforce succeeded")
-        return response.json()
-    else:
-        logging.critical("Authentication with Salesfoce failed")
+KEY_FILE_STR2 = blob.download_as_string()
+KEY_FILE2 = json.loads(KEY_FILE_STR2)
 
-def pull_report(report_id, token):
-    logging.info(f"Pulling report <{report_id}> from Salesforce.")
+scopes = cfg.scopes
+credentials = service_account.Credentials.from_service_account_info(
+    KEY_FILE2, scopes=scopes
+)
 
-    report_url = f"{cfg.salesforce_report_url}/{report_id}?includeDetails=true"
-    report = requests.get(
-        report_url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-            }
-    )
-    return report.json()
+service = discovery.build(
+    "sheets", "v4", credentials=credentials, cache_discovery=False
+)
 
-def pull_grouped_leadership_report(report_id, token):
-    report = pull_report(report_id, token)
-    if "reportMetadata" not in report:
-        logging.critical(f"Could not pull {report_id}: {report[0]}")
-        return
 
-    column_names = report["reportMetadata"]["detailColumns"]
-    group_column = report["reportMetadata"]["groupingsDown"][0]["name"]
-    column_names.insert(0, group_column)
-    column_names = [column.replace(".", "_") for column in column_names]
+def get_spreadsheet_data(
+    spreadsheet_id: str, sheet_name: str, sheet_range: str, column_names: dict = None
+) -> pd.DataFrame:
+    """
+    Returns data from passed spreadsheet as a pandas dataframe
+    """
 
-    groups = report["groupingsDown"]["groupings"]
-    df = pd.DataFrame(columns = column_names)
-    
-    for group in groups:
-        group_key = group['key']
-        rows = []
-        if report_id == "00O3m000008rKjuEAE":
-            #Special case for MQL Reviewed Status Change Report
-            factMapKey = f"{group_key}_0!T"
-            factMapEntry = report["factMap"][factMapKey]
-            rows = factMapEntry["rows"] 
+    logging.info(f"Getting data from {sheet_name}")
 
-        elif report_id == "00O3m000008rUViEAM":
-            #Special case for Monthly Lead Movement-SQL
-            second_groups = report["factMap"].keys()
-            for i in second_groups:
-                is_subgroup = re.search(f"^{group_key}_\d!T", i)
-                if is_subgroup:
-                    rows.extend(report["factMap"][i]["rows"]) 
-        else:
-            factMapKey = f"{group_key}!T"
-            factMapEntry = report["factMap"][factMapKey]
-            rows = factMapEntry["rows"]
-
-        data = []
-        for row in rows:
-            row_data = []
-            row_data.append(group["label"])
-            for cell in row["dataCells"]:
-                row_data.append(cell["label"])
-            data.append(row_data)
-        df2 = pd.DataFrame(data, columns = column_names)      
-        df = pd.concat([df, df2], ignore_index = True)
-
-    df["fetch_date"] = pd.Timestamp.now(tz='America/New_York').strftime("%Y-%m-%d")
-
-    report_name = report["attributes"]["reportName"].replace(" ", "_")
-    report_name = re.sub(r"(-)|(\.)|( -)|(_-)", "", report_name)
-
-    upload_to_bigquery(report_name, df)
-
-def pull_non_grouped_leadership_report(report_id, token):
-    report = pull_report(report_id, token)
-    if "reportMetadata" not in report:
-        logging.critical(f"Could not pull {report_id}: {report[0]}")
-        return
-
-    column_names = report["reportMetadata"]["detailColumns"]
-    column_names = [column.replace(".", "_") for column in column_names]
-    factMapKey = "T!T"
-    df = pd.DataFrame(columns = column_names)
-    
-    factMapEntry = report["factMap"][factMapKey]
-    rows = factMapEntry["rows"] 
-    data = []
-    for row in rows:
-        row_data = []
-        for cell in row["dataCells"]:
-            row_data.append(cell["label"])
-        data.append(row_data)
-    df = pd.DataFrame(data, columns = column_names)      
-
-    df["fetch_date"] = pd.Timestamp.now(tz='America/New_York').strftime("%Y-%m-%d")
-    report_name = report["attributes"]["reportName"].replace(" ", "_")
-
-    upload_to_bigquery(report_name, df)
-
-def pull_cross_grouping_leadership_report(report_id, token):
-    report = pull_report(report_id, token)
-    if "reportMetadata" not in report:
-        logging.critical(f"Could not pull {report_id}: {report[0]}")
-        return
-
-    column_names = []
-    [column_names.append(col["label"]) for col in report["groupingsAcross"]["groupings"]]
-    group_column = report["reportMetadata"]["groupingsDown"][0]["name"]
-    column_names.insert(0, group_column)
-    column_names = [column.replace(".", "_") for column in column_names]
-    column_names = [column.replace(" ", "_") for column in column_names]
-    column_names = [column.replace("-", "_") for column in column_names]
-
-    groups = report["groupingsDown"]["groupings"]
-    df = pd.DataFrame(columns = column_names)
-    
-    data = []
-    for group in groups:
-        row_data = []
-        row_data.append(group["label"])
-        for cell in range(len(column_names)-1):
-            factMapKey = f"{group['key']}!{cell}"
-            factMapEntry = report["factMap"][factMapKey]
-            cell = factMapEntry["aggregates"][0]["value"] 
-            row_data.append(cell)
-        data.append(row_data)
-    df = pd.DataFrame(data, columns = column_names)      
-
-    df["fetch_date"] = pd.Timestamp.now(tz='America/New_York').strftime("%Y-%m-%d")
-
-    report_name = report["attributes"]["reportName"].replace(" ", "_")
-
-    upload_to_bigquery(report_name, df)
-
-def upload_to_bigquery(table, dframe):
-    if len(dframe) == 0:
-        logging.critical(f"Data is not available for {table}")
-        return
-
-    table_id = f"{cfg.project}.{cfg.dataset}.{table}"
-    logging.info(f"Uploading data in BigQuery to {table_id}")
-
-    client = bigquery.Client(project=cfg.project)
-    job_config = bigquery.LoadJobConfig()
-    job_config.write_disposition = "WRITE_TRUNCATE" 
-
-    # Upload and wait for job to complete
-    job = client.load_table_from_dataframe(
-        dframe, 
-        table_id, 
-        job_config=job_config
+    req = (
+        service.spreadsheets()
+        .values()
+        .batchGet(
+            spreadsheetId=spreadsheet_id,
+            ranges=[sheet_name + sheet_range],
+            valueRenderOption=cfg.value_render_option,
+            dateTimeRenderOption=cfg.date_time_render_option,
+            majorDimension="COLUMNS",
         )
+    )
 
-    if job.result():
-        logging.info(f"The table <{table_id}> successfully loaded.")
-        
-    if not job.result():
-        logging.critical(f"The table <{table_id}> did not load successfully.")
+    resp = req.execute()["valueRanges"]
+    
+    sheet_df = pd.DataFrame(data=resp[0]["values"]).T
+    if column_names:
+        sheet_df.rename(columns=column_names, inplace=True)
+    sites = sheet_df['Site'].tolist()
+    sitemaps = sheet_df['URL'].tolist()
+    return sites, sitemaps
 
-def salesforce_reports(event, context):
-    authentication = authenticate_salesforce()
-    token = authentication["access_token"]
 
-    for report in cfg.grouped_reports:
-        pull_grouped_leadership_report(report, token) 
 
-    for report in cfg.non_grouped_reports:
-        pull_non_grouped_leadership_report(report, token)
+def bq_load(df: pd.DataFrame, dataset: str, table_id: str, schema = None):
+    
+#     """ Function to facilitate load to BigQuery. 
+#         Accepts data frame as parameter. """ 
+    
+    logging.info(f"Uploading to BQ Table {table_id}")
+    dataset_ref = bq_client.dataset(dataset)
+    table_ref = dataset_ref.table(table_id)
 
-    for report in cfg.cross_grouping_reports:
-        pull_cross_grouping_leadership_report(report, token) 
+    job_config = bigquery.LoadJobConfig()
+    job_config.source_format = bigquery.SourceFormat.CSV
+    job_config.allow_quoted_newlines = True
+    if schema:
+        job_config.schema = schema
+        job_config.autodetect = False
+    else:
+        job_config.autodetect = True
+    job_config.ignore_unknown_values = True
+
+    job = bq_client.load_table_from_dataframe(
+        df, table_ref, location="US", job_config=job_config
+    )
+
+    return job.result()
+
+
+
+
+def sitemap_parse():
+    sites, sitemaps = get_spreadsheet_data(cfg.competitor_sitemap_id, cfg.WSJ_sheet_name, "!A2:D", cfg.columns)
+    for site_index in range(len(sitemaps)):
+        economist =  adv.sitemap_to_df(sitemaps[site_index])
+        table_id = sites[site_index]
+        bq_load(economist, cfg.dataset, table_id)
+
+
 
 if __name__ == "__main__":
-    salesforce_reports("", "")
+    sitemap_parse()
