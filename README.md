@@ -1,4 +1,4 @@
-# Salesforce Leadership Reports
+# Competitor-Sitemap
 
 This cloud function pulls the data of Salesforce leadership reports listed in [this sheet](https://docs.google.com/spreadsheets/d/1qeluE-17s5LItyC09fvZZZ6N5f32PQZoFRkZSW4fgIw/edit#gid=619098472).
 
@@ -8,7 +8,7 @@ This cloud function is triggered by a PubSub topic which runs according to [this
 
 ## Inputs
 
-[Salesforce leadership reports Ids](https://docs.google.com/spreadsheets/d/1qeluE-17s5LItyC09fvZZZ6N5f32PQZoFRkZSW4fgIw/edit#gid=619098472)
+[Sites Sheet](https://docs.google.com/spreadsheets/d/1qeluE-17s5LItyC09fvZZZ6N5f32PQZoFRkZSW4fgIw/edit#gid=619098472)
 
 ## Outputs
 
