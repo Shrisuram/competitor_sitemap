@@ -100,7 +100,7 @@ def bq_load(df: pd.DataFrame, dataset: str, table_id: str, schema = None):
 
 
 
-def sitemap_parse(event,context):
+def competitor-sitemap(event,context):
     sites, sitemaps = get_spreadsheet_data(cfg.competitor_sitemap_id, cfg.WSJ_sheet_name, "!A2:D", cfg.columns)
     for site_index in range(len(sitemaps)):
         economist =  adv.sitemap_to_df(sitemaps[site_index])
@@ -110,4 +110,4 @@ def sitemap_parse(event,context):
 
 
 if __name__ == "__main__":
-    sitemap_parse("","")
+    competitor-sitemap("","")
