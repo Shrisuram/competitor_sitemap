@@ -1,5 +1,5 @@
 # Workflow for pushing updates from Github to Cloud Functions
-name: BI Data Alerts CI
+name: competitor-sitemap
 
 # Controls when the action will run. 
 on:
