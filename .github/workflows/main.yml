@@ -10,7 +10,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - "competitor-sitemap**"
+      - "function_files**"
 
 env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
