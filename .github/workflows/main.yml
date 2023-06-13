@@ -1,5 +1,5 @@
 # Workflow for pushing updates from Github to Cloud Functions
-name: BI Data Alerts CI
+name: competitor-sitemap
 
 # Controls when the action will run. 
 on:
@@ -10,7 +10,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - "competitor-sitemap**"
+      - "function_files**"
 
 env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
