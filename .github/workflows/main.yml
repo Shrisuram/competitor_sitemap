@@ -1,5 +1,5 @@
 # Workflow for pushing updates from Github to Cloud Functions
-name: competitor-sitemap
+name: competitor_sitemap
 
 # Controls when the action will run. 
 on:
