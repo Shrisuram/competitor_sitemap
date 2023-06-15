@@ -1,11 +1,7 @@
 import json
 import logging
-
-
-from google.cloud.bigquery.client import Client
 import google.cloud.logging
 import config as cfg
-import google.cloud.logging
 import pandas as pd
 from google.cloud import bigquery, storage
 from google.oauth2 import service_account
@@ -101,12 +97,15 @@ def bq_load(df: pd.DataFrame, dataset: str, table_id: str, schema = None):
 
 
 def sitemap_parse(event,context):
-    sites, sitemaps = get_spreadsheet_data(cfg.competitor_sitemap_id, cfg.WSJ_sheet_name, "!A2:D", cfg.columns)
+    sites, sitemaps = get_spreadsheet_data(cfg.competitor_sitemap_id, cfg.sheet_name, "!A2:D", cfg.columns)
     for site_index in range(len(sitemaps)):
+        logging.info(f"Getiing Dataframe for {sites[site_index]}")
         economist =  adv.sitemap_to_df(sitemaps[site_index])
         table_id = sites[site_index]
-        bq_load(economist, cfg.dataset, table_id)
+        site_schema = getattr(cfg, table_id)
+        bq_load(economist, cfg.dataset, table_id, site_schema)
 
+    logging.info(f"Done")
 
 
 if __name__ == "__main__":
