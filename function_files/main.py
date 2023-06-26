@@ -99,7 +99,7 @@ def bq_load(df: pd.DataFrame, dataset: str, table_id: str, schema = None):
 
 def competitor_sitemap(event,context):
     logging.info(f"Starting the script")
-    sites, sitemaps = get_spreadsheet_data(cfg.competitor_sitemap_id, cfg.WSJ_sheet_name, "!A2:D", cfg.columns)
+    sites, sitemaps = get_spreadsheet_data(cfg.competitor_sitemap_id, cfg.sheet_name, "!A2:D", cfg.columns)
     for site_index in range(len(sitemaps)):
         logging.info(f"Getting Dataframe for {sites[site_index]}")
         economist =  adv.sitemap_to_df(sitemaps[site_index])
