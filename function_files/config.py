@@ -60,7 +60,6 @@ bigquery.SchemaField('changefreq', 'STRING',mode = 'NULLABLE'),
 bigquery.SchemaField('sitemap', 'STRING',mode = 'NULLABLE'),
 bigquery.SchemaField('sitemap_size_mb', 'FLOAT',mode = 'NULLABLE'),
 bigquery.SchemaField('download_date', 'TIMESTAMP',mode = 'NULLABLE'),
-bigquery.SchemaField('news_keywords', 'STRING',mode = 'NULLABLE'),
 ]
 Guardian = [
 bigquery.SchemaField('loc', 'STRING',mode = 'NULLABLE'),
